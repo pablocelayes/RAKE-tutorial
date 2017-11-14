@@ -23,10 +23,17 @@ import operator
 import six
 from six.moves import range
 from collections import Counter
+from os.path import join, abspath, dirname
+from nltk.tokenize import word_tokenize
+
+RAKE_PATH = abspath(dirname(__file__))
+
+# STOPPATH = "FoxStoplist.txt" #Fox stoplist contains "numbers", so it will not find "natural numbers" like in Table 1.1
+STOPPATH = join(RAKE_PATH, "SmartStoplist.txt")  # SMART stoplist misses some of the lower-scoring keywords in Figure 1.5, which means that the top 1/3 cuts off one of the 4.0 score words in Table 1.1
 
 debug = False
-test = True
 
+test = False
 
 def is_number(s):
     try:
@@ -56,7 +63,10 @@ def separate_words(text, min_word_return_size):
     @param text The text that must be split in to words.
     @param min_word_return_size The minimum no of characters a word must have to be included.
     """
-    splitter = re.compile('[^a-zA-Z0-9_\\+\\-/]')
+    # splitter = re.compile('[^a-zA-Z0-9_\\+\\-/]')
+    splitter = re.compile('[^a-zA-Z0-9_\\+\/]')
+    # Note: we need \- to keep things like anti-aging
+
     words = []
     for single_word in splitter.split(text):
         current_word = single_word.strip().lower()
@@ -71,7 +81,10 @@ def split_sentences(text):
     Utility function to return a list of sentences.
     @param text The text that must be split in to sentences.
     """
-    sentence_delimiters = re.compile(u'[\\[\\]\n.!?,;:\t\\-\\"\\(\\)\\\'\u2019\u2013]')
+    # sentence_delimiters = re.compile(u'[\\[\\]\n.!?,;:\t\\-\\"\\(\\)\\\'\u2019\u2013]')
+    sentence_delimiters = re.compile(u'[\\[\\]\n.!?,;:\t\\\"\\(\\)\\\'\u2019\u2013]') 
+    # Note: we need \- to keep things like anti-aging
+
     sentences = sentence_delimiters.split(text)
     return sentences
 
@@ -106,7 +119,10 @@ def adjoined_candidates_from_sentence(s, stoplist, min_keywords, max_keywords):
     # Initializes the candidate list to empty
     candidates = []
     # Splits the sentence to get a list of lowercase words
-    sl = s.lower().split()
+    # sl = s.lower().split()
+    sl = [w.strip('-') for w in word_tokenize(s.lower())]
+    # print(sl)
+
     # For each possible length of the adjoined candidate
     for num_keywords in range(min_keywords, max_keywords + 1):
         # Until the third-last word
@@ -275,12 +291,11 @@ if test:
 
     # Split text into sentences
     sentenceList = split_sentences(text)
-    # stoppath = "FoxStoplist.txt" #Fox stoplist contains "numbers", so it will not find "natural numbers" like in Table 1.1
-    stoppath = "SmartStoplist.txt"  # SMART stoplist misses some of the lower-scoring keywords in Figure 1.5, which means that the top 1/3 cuts off one of the 4.0 score words in Table 1.1
-    stopwordpattern = build_stop_word_regex(stoppath)
+
+    stopwordpattern = build_stop_word_regex(STOPPATH)
 
     # generate candidate keywords
-    phraseList = generate_candidate_keywords(sentenceList, stopwordpattern, load_stop_words(stoppath))
+    phraseList = generate_candidate_keywords(sentenceList, stopwordpattern, load_stop_words(STOPPATH))
 
     # calculate individual word scores
     wordscores = calculate_word_scores(phraseList)
@@ -296,6 +311,6 @@ if test:
     if debug: print(totalKeywords)
     print(sortedKeywords[0:(totalKeywords // 3)])
 
-    rake = Rake("SmartStoplist.txt")
+    rake = Rake(STOPPATH)
     keywords = rake.run(text)
     print(keywords)
